@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}视频详情 · TikTok Collector{% endblock %}
+{% block page_class %}video-page{% endblock %}
+{% block content %}
+<nav class="breadcrumbs" aria-label="面包屑导航">
+  <ol>
+    <li><a href="/">任务中心</a></li>
+    {% if current_task %}<li><a href="/tasks/{{ current_task.id }}">{{ current_task.keyword }}</a></li>{% endif %}
+    <li><span aria-current="page">视频详情</span></li>
+  </ol>
+</nav>
+
+<section class="video-summary-card">
+  <div class="video-thumbnail">
+    {% if video.cover_url %}<img src="{{ video.cover_url }}" alt="视频封面" referrerpolicy="no-referrer">{% else %}<span>▶</span>{% endif %}
+  </div>
+  <div class="video-copy-light">
+    <div class="author-line"><span class="avatar">{{ (video.author_name or "?")[:1]|upper }}</span><div><strong>@{{ video.author_name or "未知作者" }}</strong><small>视频创作者</small></div></div>
+    <h1>{{ video.description or "无视频描述" }}</h1>
+    <div class="tags">{% for task_id, keyword in keyword_links %}<a href="/tasks/{{ task_id }}"># {{ keyword }}</a>{% endfor %}</div>
+    <div class="video-actions">
+      <a class="primary-button" href="{{ video.url }}" target="_blank" rel="noreferrer">在 TikTok 中打开 <span>↗</span></a>
+      <button class="icon-button" type="button" data-copy="{{ video.platform_video_id }}" title="复制视频 ID">复制 ID</button>
+    </div>
+  </div>
+</section>
+
+<section class="overview-grid video-metrics">
+  <article class="metric-card"><span class="metric-icon icon-like">♥</span><div><strong>{{ video.like_count|compact_number }}</strong><span>点赞</span></div></article>
+  <article class="metric-card"><span class="metric-icon icon-comments">◌</span><div><strong>{{ video.comment_count|compact_number }}</strong><span>平台评论</span></div></article>
+  <article class="metric-card"><span class="metric-icon icon-share">↗</span><div><strong>{{ video.share_count|compact_number }}</strong><span>分享</span></div></article>
+  <article class="metric-card"><span class="metric-icon icon-collected">✓</span><div><strong>{{ total_comments }}</strong><span>已采集（{{ total_top_level }} 主评论 / {{ total_replies }} 回复）</span></div></article>
+</section>
+
+<section class="content-card comments-section">
+  <div class="section-heading comment-toolbar">
+    <div><span class="section-index">COMMENTS</span><h2>评论内容</h2><span class="count-badge" data-comment-count>{{ total_comments }}</span></div>
+    {% if comments %}
+    <label class="compact-search comment-search"><span aria-hidden="true">⌕</span><input type="search" placeholder="搜索本页评论" aria-label="搜索本页评论" data-comment-search></label>
+    {% endif %}
+  </div>
+  {% if comments %}
+  <div class="comments" data-comment-list>
+    {% for comment in comments %}
+    {% set replies = replies_by_parent.get(comment.platform_comment_id, []) %}
+    <article class="comment-thread" data-comment>
+      <div class="comment comment-main">
+        <span class="comment-avatar">{{ (comment.author_name or "?")[:1]|upper }}</span>
+        <div class="comment-body">
+          <div class="comment-head"><strong>@{{ comment.author_name or "未知用户" }}</strong>{% if comment.published_at %}<time>{{ comment.published_at[:10] }}</time>{% endif %}</div>
+          <p>{{ comment.content }}</p>
+          <div class="comment-meta"><span>♥ {{ comment.like_count|compact_number }}</span>{% if replies %}<span>{{ replies|length }} 条回复</span>{% endif %}</div>
+        </div>
+      </div>
+      {% if replies %}
+      <div class="comment-replies">
+        {% for reply in replies %}
+        <div class="comment comment-reply" data-reply-item{% if loop.index > 2 %} hidden{% endif %}>
+          <span class="comment-avatar">{{ (reply.author_name or "?")[:1]|upper }}</span>
+          <div class="comment-body">
+            <div class="comment-head"><strong>@{{ reply.author_name or "未知用户" }}</strong>{% if reply.published_at %}<time>{{ reply.published_at[:10] }}</time>{% endif %}</div>
+            <p>{{ reply.content }}</p>
+            <div class="comment-meta"><span>♥ {{ reply.like_count|compact_number }}</span><span>回复</span></div>
+          </div>
+        </div>
+        {% endfor %}
+        {% if replies|length > 2 %}
+        <button class="reply-toggle" type="button" data-reply-toggle aria-expanded="false" data-more-count="{{ replies|length - 2 }}">
+          查看另外 {{ replies|length - 2 }} 条回复 <span aria-hidden="true">⌄</span>
+        </button>
+        {% endif %}
+      </div>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+  {% include "_pagination.html" %}
+  <div class="filter-empty" data-comment-empty hidden>没有找到匹配的评论。</div>
+  {% else %}
+  <div class="empty-state compact-empty"><span class="empty-icon">◌</span><h3>没有采集到评论</h3><p>评论可能尚未加载、被关闭，或当前游客环境不可见。</p></div>
+  {% endif %}
+</section>
+{% endblock %}

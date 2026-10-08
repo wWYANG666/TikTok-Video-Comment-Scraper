@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+tiktok.db
+.playwright-profile/
+.playwright-guest-profile/
+.edge-guest-profile/
+output/
+TikTok-Collector-share.zip

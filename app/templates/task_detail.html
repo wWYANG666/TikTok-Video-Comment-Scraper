@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}{{ task.keyword }} · TikTok Collector{% endblock %}
+{% block page_class %}detail-page{% endblock %}
+{% block content %}
+{% set status_labels = {"pending": "等待中", "running": "执行中", "success": "已完成", "failed": "采集失败", "partial": "部分完成"} %}
+<nav class="breadcrumbs" aria-label="面包屑导航">
+  <ol>
+    <li><a href="/">任务中心</a></li>
+    <li><span aria-current="page">任务 #{{ task_number }}</span></li>
+  </ol>
+</nav>
+
+<section class="detail-hero" {% if task.status in ["pending", "running"] %}data-auto-refresh{% endif %}>
+  <div>
+    <div class="detail-meta"><span class="status status-{{ task.status }}"><i></i>{{ status_labels.get(task.status, task.status) }}</span><span>任务 #{{ task_number }}</span></div>
+    <h1>{{ task.keyword }}</h1>
+    <p>创建于 <time datetime="{{ task.created_at.isoformat() }}">{{ task.created_at|beijing_time }}（北京时间）</time> · TikTok 游客实时采集</p>
+  </div>
+  <div class="actions">
+    {% if task.status != "running" %}
+    <form action="/tasks/{{ task.id }}/rerun" method="post" data-submit-form>
+      <button class="secondary-button" type="submit" data-submit-button><span aria-hidden="true">↻</span><span class="button-label">重新采集</span></button>
+    </form>
+    {% endif %}
+    {% if links %}<a class="secondary-button" href="/tasks/{{ task.id }}/export.csv"><span aria-hidden="true">↓</span> 导出 CSV</a>{% endif %}
+    {% if task.status not in ["pending", "running"] %}
+    <form action="/tasks/{{ task.id }}/delete" method="post" data-delete-form data-task-name="{{ task.keyword }}">
+      <button class="secondary-button danger-button" type="submit"><span aria-hidden="true">×</span> 删除任务</button>
+    </form>
+    {% endif %}
+  </div>
+</section>
+
+{% if task.error_message %}
+<div class="alert alert-error"><span>!</span><div><strong>任务执行失败</strong><p>{{ task.error_message }}</p></div></div>
+{% endif %}
+
+{% if task.status in ["pending", "running"] %}
+<div class="alert alert-progress"><span class="loader"></span><div><strong>{{ "任务正在启动" if task.status == "pending" else "正在采集 TikTok 数据" }}</strong><p>浏览器会自动搜索视频并等待评论加载，本页面每 5 秒自动更新。</p></div><small>请勿关闭采集浏览器</small></div>
+{% endif %}
+
+<section class="overview-grid detail-metrics">
+  <article class="metric-card"><span class="metric-icon icon-videos">▶</span><div><strong>{{ total_links }}</strong><span>已采集视频</span></div></article>
+  <article class="metric-card"><span class="metric-icon icon-target">◎</span><div><strong>{{ task.max_videos }}</strong><span>目标视频</span></div></article>
+  <article class="metric-card"><span class="metric-icon icon-comments">◌</span><div><strong>{{ task.max_comments }}</strong><span>单视频主评论</span></div></article>
+  <article class="metric-card"><span class="metric-icon icon-comments">↳</span><div><strong>{{ task.max_replies }}</strong><span>单评论回复</span></div></article>
+</section>
+
+<section class="content-card">
+  <div class="section-heading">
+    <div><span class="section-index">RESULT</span><h2>搜索结果</h2><span class="count-badge">{{ total_links }}</span></div>
+    {% if links %}<span class="section-caption">点击任意视频查看评论详情</span>{% endif %}
+  </div>
+  {% if links %}
+  <div class="table-wrap">
+    <table class="video-table">
+      <thead><tr><th>排名</th><th>视频内容</th><th>作者</th><th>点赞</th><th>平台评论</th><th>已采集</th><th></th></tr></thead>
+      <tbody>
+      {% for link in links %}
+      <tr class="clickable-row" data-href="/videos/{{ link.video_id }}?task_id={{ task.id }}">
+        <td><span class="rank-badge">{{ link.rank }}</span></td>
+        <td><a class="video-title" href="/videos/{{ link.video_id }}?task_id={{ task.id }}">{{ link.video.description or "无视频描述" }}</a><small class="video-id">ID {{ link.video.platform_video_id }}</small></td>
+        <td><span class="author-cell"><i>{{ (link.video.author_name or "?")[:1]|upper }}</i>{{ link.video.author_name or "未知作者" }}</span></td>
+        <td>{{ link.video.like_count|compact_number }}</td>
+        <td>{{ link.video.comment_count|compact_number }}</td>
+        <td><strong>{{ comment_counts.get(link.video_id, 0) }}</strong></td>
+        <td><a class="row-action" href="/videos/{{ link.video_id }}?task_id={{ task.id }}" aria-label="查看视频详情">→</a></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "_pagination.html" %}
+  {% else %}
+  <div class="empty-state compact-empty">
+    <span class="empty-icon">◌</span>
+    <h3>{{ "采集中，请稍候" if task.status in ["pending", "running"] else "暂时没有视频数据" }}</h3>
+    <p>{{ "采集到的视频会自动显示在这里。" if task.status in ["pending", "running"] else "可以重新运行任务，或尝试更换关键词。" }}</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
