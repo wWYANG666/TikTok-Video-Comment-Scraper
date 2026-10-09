@@ -4,6 +4,8 @@
 
 默认以游客模式访问当前浏览器可以查看的公开内容。能否获得数据取决于 TikTok 的访问状态、网络环境和页面结构。
 
+如果这个项目对你有帮助，欢迎在 GitHub 点一个 **Star**。你的支持会帮助项目继续改进。
+
 ## 快速开始
 
 ### 1. 下载并解压
@@ -180,3 +182,190 @@ tests/             # 自动化测试
 - 不保证获得全部视频、评论或回复，部分回复仅能在当前浏览器会话允许时加载。
 - 后台任务随服务进程运行，暂不支持重启恢复、任务取消或独立任务队列。
 - 视频与评论跨任务共享，尚无采集结果快照、缓存自动过期和逐视频阶段状态。
+
+---
+
+## English Documentation
+
+### TikTok Video & Comment Scraper
+
+A local tool for collecting publicly accessible TikTok videos, engagement data, top-level comments, and replies by keyword. Results are stored in SQLite and displayed in a local web interface.
+
+The collector uses a guest browser session and can only read content visible in the current environment. Results depend on TikTok availability, network conditions, regional policies, and page structure.
+
+If this project is useful to you, please consider giving it a **Star** on GitHub. Your support helps the project continue to improve.
+
+## Quick Start on Windows
+
+### 1. Download and extract
+
+Download the repository ZIP or the share package, extract it completely into a writable folder, and open the folder containing `setup.bat` and `start.bat`. Do not run scripts directly from inside the ZIP archive.
+
+The one-click setup below is for Windows and requires an internet connection the first time.
+
+### 2. Install the environment
+
+Double-click `setup.bat` and wait until the window shows:
+
+```text
+Installation complete. Double-click start.bat to run the app.
+```
+
+The setup script will:
+
+1. Check for Python 3.12 and try to install it for the current user with WinGet if it is missing.
+2. Create an isolated `.venv` environment in the project directory.
+3. Install the pinned dependencies from `requirements.txt`.
+4. Install Playwright Chromium and verify the application imports, dependencies, and browser files.
+
+The browser download may take a few minutes. If both Python and WinGet are unavailable, install [Python 3.12](https://www.python.org/downloads/windows/) first and run `setup.bat` again. Keep the setup window open if it reports an error.
+
+### 3. Start the application
+
+Double-click `start.bat`, keep the server window open, and visit **<http://127.0.0.1:8000>**.
+
+After the first setup, you normally only need to double-click `start.bat`. If dependencies or browser components are missing, the startup script runs the setup process again. A new empty database is created on first launch; the share package does not include previous collection results.
+
+Press `Ctrl+C` in the server window to stop the application. Let an active collection task finish before stopping the service when possible.
+
+## Create a collection task
+
+1. Enter a keyword on the home page.
+2. Set the video count, top-level comment limit, and reply limit.
+3. Click **开始采集** to create a task.
+4. The application opens a collection browser. Keep both the server window and collection browser open during collection.
+5. Open a result video to view top-level comments and nested replies.
+
+For the first run, use **1 video, 5 top-level comments, and up to 3 replies per comment**. Increase the limits after confirming that TikTok is accessible from the current network.
+
+### Parameters
+
+| Parameter | Default | Range | Description |
+| --- | ---: | ---: | --- |
+| Video count | 10 | 1–50 | Maximum number of videos processed in this task |
+| Top-level comments per video | 50 | 0–500 | Maximum number of top-level comments collected per video; `0` skips comment collection |
+| Replies per comment | 20 | 0–100 | Maximum number of replies collected for each top-level comment in this run; `0` skips reply collection |
+
+These values are limits, not guarantees. Fewer results may be returned when public results are unavailable, comments cannot be loaded, or a stage times out. Replies do not consume the top-level comment limit.
+
+Search results are saved first, followed by top-level comments and then replies, so videos may appear before comments finish loading. Task detail pages usually refresh every five seconds while a task is pending or running. If a background tab does not continue refreshing after you return to it, refresh the page manually.
+
+## View, export, and delete
+
+- **Task list**: view status, result counts, and Beijing time; keyword search and status filters apply to the current page.
+- **Video details**: view descriptions, authors, engagement metrics, and comment threads. Replies beyond the first two can be expanded or collapsed.
+- **CSV export**: click **导出 CSV** on a task page. The current export contains video metadata and collected comment counts, not comment text.
+- **Rerun**: rerun a task that is not currently executing. Existing video and comment data may be reused.
+- **Delete**: confirm deletion from the task list or task detail page. Pending and running tasks cannot be deleted. Unreferenced videos and comments are deleted with the task.
+
+The same video can be linked from multiple tasks, and comments are shared by video. New collection data may therefore affect how that video appears in another task; independent per-run snapshots are not implemented yet.
+
+The limits above apply only to the current collection run and do not delete stored data. Video details and CSV output use cumulative stored comments, so counts may exceed the limits of one run; setting a limit to `0` does not hide historical comments.
+
+## Data and sharing
+
+| File or directory | Contents |
+| --- | --- |
+| `tiktok.db` | Tasks, videos, comments, and relationships |
+| `output/raw/<timestamp-keyword>/` | Captured raw JSON responses and failure screenshots |
+| `.playwright-guest-profile/` | Persistent browser session, cookies, and page settings used by the collector |
+| `.venv/` | Python environment installed on the current computer |
+
+Deleting a task removes related database records but does not remove raw JSON, screenshots, or browser session files. Stop the service before copying `tiktok.db` for backup.
+
+Raw response bodies may contain usernames, comments, and signed media URLs. A persistent browser profile may also contain a session left by a manual login. Do not publish these files with source code.
+
+To create a clean share package, double-click `make-share-package.bat` and send the generated `TikTok-Collector-share.zip`. The package contains source code, tests, setup scripts, and documentation, but excludes local databases, browser profiles, raw output, and virtual environments. Some mail services block ZIP attachments containing scripts; use a repository or cloud storage link when necessary.
+
+## Troubleshooting
+
+| Problem | What to do |
+| --- | --- |
+| Python or WinGet is missing | Install Python 3.12 and run `setup.bat` again; if it was just installed, close the window and retry |
+| Dependency or Chromium download fails | Check access to PyPI and the Playwright browser download service, then rerun `setup.bat` |
+| `.venv` uses the wrong Python version | Stop the service, rename the old `.venv`, and run setup again; do not copy a `.venv` from another computer |
+| Port is already in use | Stop the existing service, or set `TIKTOK_PORT` as described below |
+| The page does not open | Confirm that the server window shows `Uvicorn running` and use the address printed there |
+| No videos, HTTP 403, or zero comments | Check whether the collection browser can display TikTok search and video pages, then inspect the task error and `output/raw/` diagnostics |
+| Fewer results than requested | The configured numbers are upper limits; unavailable data, loading failures, and timeouts can end a stage early |
+| Rerunning produces no visible change | The task may be reusing existing comment cache; automatic cache expiry and a force-refresh control are not implemented |
+| A task remains unfinished after a restart | Background tasks do not resume automatically. Try rerunning the task after starting the service again |
+
+Successful local installation only confirms that the environment is configured. TikTok must still be reachable from the current network, and a task marked complete does not mean that all platform comments were collected.
+
+## Advanced settings
+
+Set environment variables in PowerShell before starting. They apply only to that PowerShell window.
+
+### Change the server port
+
+```powershell
+$env:TIKTOK_PORT = "8080"
+.\start.bat
+```
+
+Open <http://127.0.0.1:8080>. `start.bat` reads `TIKTOK_PORT`; when calling Uvicorn directly, pass `--port` yourself.
+
+### Select the collection browser
+
+The collector first looks for an installed Edge or Chrome and falls back to Playwright Chromium. You can provide a browser executable explicitly:
+
+```powershell
+$env:TIKTOK_BROWSER_PATH = "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
+.\start.bat
+```
+
+### Headless mode
+
+The collection browser is visible by default. To use headless mode:
+
+```powershell
+$env:TIKTOK_HEADLESS = "1"
+.\start.bat
+```
+
+TikTok may return different content in headless mode, so verify it in the current environment first.
+
+## Manual installation and running
+
+Run these commands in Windows PowerShell with Python 3.12 installed. Activating the virtual environment is optional:
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m playwright install chromium
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+## Development notes
+
+The main stack is FastAPI, SQLAlchemy, SQLite, Jinja2, and Playwright. The collector prioritizes browser network responses and uses the DOM as a fallback. Tasks run serially, with up to two video pages processed concurrently inside one task.
+
+```text
+app/
+├── crawler/       # Browser collection and network response parsing
+├── templates/     # HTML templates
+├── static/        # Styles and browser interactions
+├── config.py      # Path configuration
+├── database.py    # Database initialization
+├── models.py      # Task, video, and comment models
+├── services.py    # Scheduling, persistence, and export
+└── main.py        # Web routes
+tests/             # Automated tests
+```
+
+Run tests with:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider
+```
+
+Some tests initialize the application database, so run them in an isolated project copy when protecting an existing local database matters.
+
+## Current limitations
+
+- Designed for local single-user use and bound to `127.0.0.1` by default.
+- Depends on TikTok public pages and APIs; page structure, regional policies, and access status can affect collection.
+- Does not guarantee all videos, comments, or replies; reply visibility depends on the current guest browser session.
+- Background tasks run inside the service process and currently do not support restart recovery, cancellation, or a separate job queue.
+- Videos and comments are shared across tasks; per-run result snapshots, automatic cache expiry, and per-video stage status are not implemented yet.
